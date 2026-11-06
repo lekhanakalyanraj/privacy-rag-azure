@@ -23,19 +23,27 @@ gap is usually the most informative number in a report.
 ## The golden set
 
 60 questions in `eval/golden/questions.yaml`: 50 answerable, each tagged with
-the document and section that answers it, and **10 deliberately unanswerable** —
-plausible, on-topic, genuinely absent from the corpus.
+the chapter and section that answers it, and **10 deliberately unanswerable** —
+plausible, on-topic, genuinely absent from the corpus. Penalties, case law and
+the text of the Privacy Act itself all sit outside the guidelines, so there is
+no shortage of material for those ten.
 
 The 10 matter more than their share suggests. A model that answers them is
 drawing on pre-training rather than the corpus, which is the exact behaviour
 that makes a grounded-answer system untrustworthy, and you only detect it by
 testing for it.
 
+**Validate each one before trusting it:** ask the question with no context at
+all. If the model answers correctly from memory, that question is contaminated
+and measures nothing — replace it. Privacy law is partly memorised, so this
+check is not optional for this corpus.
+
 Written *before* any tuning. A golden set assembled after seeing the failures is
 a golden set shaped around them.
 
 Matching is on `(doc_id, section)`, never `chunk_id`: re-chunking the corpus
-changes every chunk id, which would silently invalidate the whole set.
+changes every chunk id, which would silently invalidate the whole set. `doc_id`
+is the chapter filename stem, so renaming a fetched file breaks it too.
 
 ## The judge, and who judges the judge
 

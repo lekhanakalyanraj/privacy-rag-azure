@@ -1,7 +1,7 @@
-# azure-rag-foundry
+# privacy-rag-azure
 
-Question answering over a document corpus on Microsoft Foundry and Azure AI Search —
-hybrid retrieval with semantic re-ranking, citations on every claim, and an
+Answers Australian privacy-compliance questions from the OAIC's own guidance —
+hybrid retrieval with semantic re-ranking, a citation on every claim, and an
 automated groundedness gate that fails the build on a quality regression.
 
 The entire Azure footprint is Terraform. Nothing here was created in the portal.
@@ -14,14 +14,19 @@ The entire Azure footprint is Terraform. Nothing here was created in the portal.
 
 **Live endpoint:** _TBD_ · **Cost to run:** ~A$0/month (see [docs/costs.md](docs/costs.md))
 
+The corpus is the OAIC's own Australian Privacy Principles guidelines, licensed
+CC BY 4.0 — [attribution](data/sample-corpus/ATTRIBUTION.md). It is a retrieval
+and evaluation exercise, not a compliance tool, and its output is not legal
+advice.
+
 ---
 
 ## The result
 
 > _TBD — the headline experiment, filled in after three live runs:_
 >
-> On a 60-question golden set over a NN-document corpus, adding semantic
-> re-ranking on top of hybrid retrieval moved retrieval recall@5 from **A%** to
+> On a 60-question golden set over the 18 OAIC guidance chapters, adding
+> semantic re-ranking on top of hybrid retrieval moved retrieval recall@5 from **A%** to
 > **B%**, the share of answers with zero unsupported claims from **C%** to
 > **D%**, and correct abstention on 10 unanswerable questions from **E/10** to
 > **F/10**. Mean of 3 runs; generator `gpt-4.1-mini`, judge `gpt-4.1`;
@@ -95,7 +100,7 @@ Details and the reasoning behind each choice: [docs/architecture.md](docs/archit
 | [`eval/`](eval) | golden set, four metrics, judge prompts, the runner and the gate |
 | [`.github/workflows/`](.github/workflows) | PR checks, Terraform plan, two deploys, run-ingest, nightly eval |
 | [`docs/`](docs) | architecture, evaluation, failure modes, costs, onboarding |
-| [`scripts/`](scripts) | bootstrap, teardown, cost check |
+| [`scripts/`](scripts) | corpus fetcher, bootstrap, teardown, cost check |
 
 Each service's Dockerfile installs only its own extra from `pyproject.toml`, so
 the API image contains no blob-storage client and the ingestion image contains
@@ -119,6 +124,7 @@ terraform init && terraform apply
 cd -
 make install
 make env                                          # .env from Terraform outputs
+make corpus                                       # fetch the OAIC chapters
 make ingest                                       # chunk, embed, push (locally)
 make serve                                        # http://localhost:8000/docs
 make eval                                         # the golden set

@@ -27,8 +27,8 @@ jobs:
 
       - name: Ruff
         run: |
-          ruff check libs services eval
-          ruff format --check libs services eval
+          ruff check libs services eval scripts
+          ruff format --check libs services eval scripts
 
       - name: Mypy
         run: mypy libs services

@@ -31,6 +31,12 @@ htmlcov/
 # Embedding cache - regenerable, and large
 .cache/
 
+# Fetched corpus. The manifest and attribution are committed; the chapter text
+# is not - see data/sample-corpus/ATTRIBUTION.md.
+data/sample-corpus/*.md
+!data/sample-corpus/README.md
+!data/sample-corpus/ATTRIBUTION.md
+
 # Eval output. Baselines ARE committed (they are the gate); run reports are not.
 eval/reports/*
 !eval/reports/.gitkeep

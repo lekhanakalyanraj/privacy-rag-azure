@@ -15,7 +15,8 @@
 #   id          stable, referenced in reports and baselines - never renumber
 #   question    as a user would actually type it, typos and all
 #   answerable  false for the deliberately-absent ones
-#   gold_doc    doc_id that contains the answer (chunk ids change, doc ids don't)
+#   gold_doc    doc_id = the chapter filename without .md, since chunk ids
+#               change when you re-chunk and doc ids do not
 #   gold_section  section heading, for recall@k scoring
 #   must_include  substrings a correct answer should contain - keep these few
 #                 and factual (numbers, defined terms), never whole sentences
@@ -26,8 +27,8 @@ questions:
   - id: q001
     question: Do I need consent before using someone's email address for direct marketing?
     answerable: true
-    gold_doc: privacy-principles
-    gold_section: APP 7 Direct marketing
+    gold_doc: chapter-7-app-7-direct-marketing
+    gold_section: "What does APP 7 say?"
     must_include: ["direct marketing"]
     tags: [definition]
     notes: Baseline easy case. If this fails, something is wired wrong.
@@ -35,22 +36,25 @@ questions:
   - id: q002
     question: What steps are required before sending personal information overseas?
     answerable: true
-    gold_doc: privacy-principles
-    gold_section: APP 8 Cross-border disclosure
+    gold_doc: chapter-8-app-8-cross-border-disclosure-of-personal-information
+    gold_section: "What does APP 8 say?"
     must_include: ["reasonable steps"]
     tags: [definition]
 
   - id: q003
     question: If I collected an email for billing, can I later use it to promote a sale?
     answerable: true
-    gold_doc: privacy-principles
-    gold_section: APP 7 Direct marketing
-    must_include: ["exception"]
-    tags: [multi_hop]
+    gold_doc: chapter-7-app-7-direct-marketing
+    gold_section: "Using and disclosing personal information for the purpose of direct marketing where r"
+    must_include: ["reasonably expect"]
+    tags: [multi_hop, near_duplicate]
     notes: |
-      Needs the marketing rule AND the collection-purpose rule. Single-chunk
-      retrieval tends to answer this confidently off half the picture, which is
-      exactly the failure worth catching.
+      Spans APP 6 (use and disclosure) and APP 7 (direct marketing), and APP 7
+      itself splits on whether the individual would reasonably expect it. Three
+      chapters have near-identical headings here, which is the trap: single-chunk
+      retrieval answers confidently off a third of the picture.
+      Check gold_section against the fetched file - headings are long and the
+      extractor keeps them verbatim.
 
   - id: q051
     question: What is the maximum penalty in dollars for a serious privacy breach?
@@ -59,10 +63,13 @@ questions:
     gold_section: null
     tags: [edge_case]
     notes: |
-      Plausible, on-topic, and not in the corpus. The model very likely knows a
-      number from pre-training and will want to supply it. Correct behaviour is
-      the abstention sentinel. This single question has caught more real bugs
-      than any of the answerable ones.
+      Penalties live in the Privacy Act, not in the APP guidelines, so the
+      corpus genuinely cannot answer it - but the model has seen the number in
+      pre-training and will want to supply it. Correct behaviour is the
+      sentinel.
+      Before trusting this question, ask it with NO context. If the model
+      answers correctly from memory, the question is contaminated and tests
+      nothing - swap it out.
 
   - id: q052
     question: Who is the current Privacy Commissioner?

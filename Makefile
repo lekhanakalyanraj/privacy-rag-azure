@@ -1,4 +1,4 @@
-.PHONY: help install lint test env ingest ingest-job serve eval eval-replay plan apply destroy docker roles
+.PHONY: help install lint test env corpus ingest ingest-job serve eval eval-replay plan apply destroy docker roles
 .DEFAULT_GOAL := help
 
 TF_DIR := infra/envs/dev
@@ -13,8 +13,8 @@ install: ## Create the venv and install everything (core + both services + dev)
 	$(PY)/pip install -e ".[dev]"
 
 lint: ## Ruff + mypy across the core and both services
-	$(PY)/ruff check libs services eval
-	$(PY)/ruff format --check libs services eval
+	$(PY)/ruff check libs services eval scripts
+	$(PY)/ruff format --check libs services eval scripts
 	$(PY)/mypy libs services
 
 test: ## Unit tests (no Azure, no network)
@@ -27,6 +27,9 @@ env: ## Write .env from Terraform outputs
 
 roles: ## Show what each deployable is permitted to do
 	cd $(TF_DIR) && terraform output -json identities | jq
+
+corpus: ## Fetch the OAIC guidance chapters into data/sample-corpus
+	$(PY)/python scripts/fetch_corpus.py
 
 ingest: ## Run ingestion locally against the dev index
 	$(PY)/python -m rag_ingest --local data/sample-corpus
