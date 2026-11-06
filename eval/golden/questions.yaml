@@ -1,0 +1,73 @@
+# The golden set: the whole project's claim to being measured rather than vibed.
+#
+# Target shape for the real thing:
+#   50 answerable questions - each with the document and section that answers it
+#   10 unanswerable questions - plausible, on-topic, genuinely absent
+#
+# The 10 unanswerable ones are not padding. A system that answers everything is
+# a system that confabulates, and you only find out if you test for it on
+# purpose. Expect these to be the questions that embarrass the first version.
+#
+# Write these BEFORE you tune anything. A golden set written after you have seen
+# the failures is a golden set shaped around them.
+#
+# Fields:
+#   id          stable, referenced in reports and baselines - never renumber
+#   question    as a user would actually type it, typos and all
+#   answerable  false for the deliberately-absent ones
+#   gold_doc    doc_id that contains the answer (chunk ids change, doc ids don't)
+#   gold_section  section heading, for recall@k scoring
+#   must_include  substrings a correct answer should contain - keep these few
+#                 and factual (numbers, defined terms), never whole sentences
+#   tags        multi_hop | near_duplicate | table | definition | edge_case
+#   notes       why this question is here, for the person reading it in 6 months
+
+questions:
+  - id: q001
+    question: Do I need consent before using someone's email address for direct marketing?
+    answerable: true
+    gold_doc: privacy-principles
+    gold_section: APP 7 Direct marketing
+    must_include: ["direct marketing"]
+    tags: [definition]
+    notes: Baseline easy case. If this fails, something is wired wrong.
+
+  - id: q002
+    question: What steps are required before sending personal information overseas?
+    answerable: true
+    gold_doc: privacy-principles
+    gold_section: APP 8 Cross-border disclosure
+    must_include: ["reasonable steps"]
+    tags: [definition]
+
+  - id: q003
+    question: If I collected an email for billing, can I later use it to promote a sale?
+    answerable: true
+    gold_doc: privacy-principles
+    gold_section: APP 7 Direct marketing
+    must_include: ["exception"]
+    tags: [multi_hop]
+    notes: |
+      Needs the marketing rule AND the collection-purpose rule. Single-chunk
+      retrieval tends to answer this confidently off half the picture, which is
+      exactly the failure worth catching.
+
+  - id: q051
+    question: What is the maximum penalty in dollars for a serious privacy breach?
+    answerable: false
+    gold_doc: null
+    gold_section: null
+    tags: [edge_case]
+    notes: |
+      Plausible, on-topic, and not in the corpus. The model very likely knows a
+      number from pre-training and will want to supply it. Correct behaviour is
+      the abstention sentinel. This single question has caught more real bugs
+      than any of the answerable ones.
+
+  - id: q052
+    question: Who is the current Privacy Commissioner?
+    answerable: false
+    gold_doc: null
+    gold_section: null
+    tags: [edge_case]
+    notes: Tests that it refuses on facts the corpus never contained, not just on nonsense.
