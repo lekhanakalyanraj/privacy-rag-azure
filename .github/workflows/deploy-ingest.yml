@@ -1,0 +1,75 @@
+# Deploy the ingestion job - the definition only. It does NOT run ingestion:
+# that spends tokens and rewrites the index the API is serving, which a code
+# merge should not do on its own. See run-ingest.yml.
+
+name: deploy-ingest
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/ingest/**"
+      - "libs/rag_core/**"
+      - "pyproject.toml"
+      - ".github/workflows/deploy-ingest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: deploy-ingest-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}/ingest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/ingest/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha,scope=ingest
+          cache-to: type=gha,mode=max,scope=ingest
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update the job definition
+        run: |
+          az containerapp job update \
+            --name "${{ vars.INGEST_JOB_NAME }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP }}" \
+            --image "${{ env.IMAGE }}:${{ github.sha }}"
+
+      - name: Confirm the job is registered
+        run: |
+          az containerapp job show \
+            --name "${{ vars.INGEST_JOB_NAME }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP }}" \
+            --query "{name:name, image:properties.template.containers[0].image, trigger:properties.configuration.triggerType}" \
+            -o table

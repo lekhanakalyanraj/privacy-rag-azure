@@ -1,0 +1,84 @@
+# Deploy the API service. Path-filtered, which is the payoff of the split:
+# changing ingestion no longer redeploys the service taking public traffic.
+# A libs/rag_core change triggers both deploys, correctly.
+
+name: deploy-api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/api/**"
+      - "libs/rag_core/**"
+      - "pyproject.toml"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: deploy-api-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}/api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Root context so the image can copy the shared core library.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update the container app
+        run: |
+          az containerapp update \
+            --name "${{ vars.CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP }}" \
+            --image "${{ env.IMAGE }}:${{ github.sha }}"
+
+      # Scaled to zero, so this pays the cold start a real first user would.
+      - name: Smoke test
+        run: |
+          url="https://$(az containerapp show \
+            --name "${{ vars.CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP }}" \
+            --query properties.configuration.ingress.fqdn -o tsv)"
+          echo "deployed: $url"
+          for i in $(seq 1 10); do
+            if curl -fsS --max-time 30 "$url/healthz"; then
+              echo "healthy"; exit 0
+            fi
+            echo "attempt $i failed, retrying"; sleep 15
+          done
+          echo "never became healthy"; exit 1

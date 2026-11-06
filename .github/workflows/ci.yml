@@ -1,0 +1,46 @@
+# Fast, free, offline. No Azure credentials and no cloud calls - a pull request
+# should never cost money or wait on a round-trip.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Ruff
+        run: |
+          ruff check libs services eval
+          ruff format --check libs services eval
+
+      - name: Mypy
+        run: mypy libs services
+
+      - name: Unit tests
+        run: pytest --cov=rag_core --cov=rag_api --cov=rag_ingest --cov-report=term-missing
+
+      # Re-scores answers recorded by an earlier live run. Skipped until one exists.
+      - name: Eval (replay)
+        run: |
+          if compgen -G "eval/fixtures/*.json" > /dev/null; then
+            python eval/run_eval.py --replay
+          else
+            echo "No fixtures recorded yet - skipping replay."
+          fi

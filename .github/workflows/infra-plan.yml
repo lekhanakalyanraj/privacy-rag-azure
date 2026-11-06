@@ -1,0 +1,76 @@
+# Shows what a merge would change in Azure, before it changes it. Plan only -
+# the diff should be reviewable in the PR, not discovered afterwards.
+
+name: infra-plan
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra-plan.yml"
+
+permissions:
+  contents: read
+  id-token: write      # OIDC: lets GitHub prove its identity to Entra ID
+  pull-requests: write # to post the plan as a comment
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/envs/dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: Format check
+        run: terraform fmt -check -recursive ../..
+
+      # No credentials needed, so this runs even if login breaks.
+      - name: Validate
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      # No client secret: see infra/cicd for how the trust is established.
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Plan
+        id: plan
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_ghcr_username: ${{ github.repository_owner }}
+          TF_VAR_ghcr_token: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          terraform init
+          terraform plan -no-color -out tf.plan | tee plan.txt
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Comment plan on the PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let plan = fs.readFileSync('infra/envs/dev/plan.txt', 'utf8');
+            // Comments cap at 65536 chars; the tail holds the summary.
+            if (plan.length > 60000) plan = '...truncated...\n' + plan.slice(-60000);
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### Terraform plan\n\n<details><summary>Show plan</summary>\n\n\`\`\`hcl\n${plan}\n\`\`\`\n\n</details>`
+            });
