@@ -1,0 +1,19 @@
+# Both service images build from the repository root so they can copy the
+# shared core library, which means this list has to exclude everything that is
+# not source.
+.git
+.github
+.venv
+infra
+docs
+eval
+data
+scripts
+conftest.py
+**/tests/
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.cache
+*.md

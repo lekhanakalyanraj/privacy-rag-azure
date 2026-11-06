@@ -1,0 +1,77 @@
+[project]
+name = "azure-rag-foundry"
+version = "0.1.0"
+description = "RAG assistant on Microsoft Foundry and Azure AI Search, with an evaluation gate in CI"
+requires-python = ">=3.12"
+
+# Base dependencies are what the shared core needs - talking to Search and to
+# Foundry, and authenticating. Each service adds only what it actually uses,
+# which is what keeps the API image free of blob-storage code and the ingestion
+# image free of a web server.
+dependencies = [
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "azure-identity>=1.19",
+    "azure-search-documents>=12.0",
+    "openai>=1.57",
+]
+
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+]
+ingest = [
+    "azure-storage-blob>=12.24",
+]
+dev = [
+    "azure-rag-foundry[api,ingest]",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "types-pyyaml",
+    # the eval harness
+    "httpx>=0.28",
+    "pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "libs/rag_core/src/rag_core",
+    "services/api/src/rag_api",
+    "services/ingest/src/rag_ingest",
+]
+
+[tool.pytest.ini_options]
+# Each package on the path at its own src root, exactly as its container sees it.
+pythonpath = [
+    "libs/rag_core/src",
+    "services/api/src",
+    "services/ingest/src",
+    ".",
+]
+testpaths = ["libs", "services"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["libs/rag_core/src", "services/api/src", "services/ingest/src", "eval"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "libs/rag_core/src:services/api/src:services/ingest/src"
+# Not --strict: this is a portfolio project, and strict mode on Azure SDK
+# surfaces generates more noise than signal. Tighten it if it starts catching
+# real bugs rather than missing stubs.
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true
