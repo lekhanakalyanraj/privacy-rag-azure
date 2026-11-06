@@ -1,0 +1,10 @@
+# cp terraform.tfvars.example terraform.tfvars  (terraform.tfvars is gitignored)
+#
+# subscription_id and ghcr_token are better passed as environment variables:
+#   export TF_VAR_subscription_id=$(az account show --query id -o tsv)
+#   export TF_VAR_ghcr_token=ghp_...
+
+environment   = "dev"
+location      = "australiaeast"
+ghcr_username = "your-github-username"
+delete_after  = "2026-12-31"
