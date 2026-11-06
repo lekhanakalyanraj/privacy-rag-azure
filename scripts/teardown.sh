@@ -20,7 +20,7 @@ terraform destroy -auto-approve
 echo
 echo "==> Resource groups still tagged for this project"
 az group list \
-  --query "[?tags.project=='azure-rag-foundry'].{name:name, state:properties.provisioningState}" \
+  --query "[?tags.project=='privacy-rag-azure'].{name:name, state:properties.provisioningState}" \
   -o table
 
 echo

@@ -9,7 +9,7 @@ variable "github_owner" {
 
 variable "repository" {
   type    = string
-  default = "azure-rag-foundry"
+  default = "privacy-rag-azure"
 }
 
 variable "default_branch" {

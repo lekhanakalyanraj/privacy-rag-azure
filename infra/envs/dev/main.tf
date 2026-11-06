@@ -19,7 +19,7 @@ locals {
   suffix = random_string.suffix.result
 
   tags = {
-    project      = "azure-rag-foundry"
+    project      = "privacy-rag-azure"
     environment  = "dev"
     managed_by   = "terraform"
     delete_after = var.delete_after # scripts/teardown.sh greps this
